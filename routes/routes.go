@@ -13,8 +13,8 @@ func SetupRouter() *gin.Engine {
 
 	v1 := router.Group("/v1")
 	{
-		v1.GET("/get-warehouse/:id", controllers.GetChangedPurchaseOrders)
-		v1.DELETE("/delete-stock-purchase", controllers.DeletePurchaseOrder)
+		v1.DELETE("/delete-stock-purchase", controllers.DeleteStockPurchase)
+		v1.GET("/get-factory/:id", controllers.GetFactory)
 	}
 
 	return router
