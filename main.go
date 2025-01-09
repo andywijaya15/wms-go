@@ -33,7 +33,6 @@ func startServer() {
 }
 
 func main() {
-
 	isCommand := len(os.Args) > 1 && os.Args[1] != ""
 	if isCommand {
 		handleCommand(os.Args[1])
