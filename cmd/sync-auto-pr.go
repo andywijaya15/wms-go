@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 	"wms-go/models"
 	"wms-go/utils"
@@ -96,8 +97,8 @@ func SyncAutoPr() {
 
 	start = time.Now().In(loc)
 	fmt.Println("Start:", start.Format("15:04:05"))
-	for i, each := range outstandingAllocationPrs {
-		fmt.Printf("%d of %d -> %d\n", i+1, len(outstandingAllocationPrs), each.ID)
+	for _, each := range outstandingAllocationPrs {
+		// fmt.Printf("%d of %d -> %d\n", i+1, len(outstandingAllocationPrs), each.ID)
 		IsAllocationPurchase := false
 		if each.StatusLC == "PR" {
 			IsAllocationPurchase = true
@@ -240,12 +241,36 @@ func SyncAutoPr() {
 		}
 		allocations = append(allocations, allocation)
 	}
-	if len(allocations) > 0 {
-		err := DB.CreateInBatches(&allocations, 1000).Error
-		if err != nil {
-			log.Fatalf("Error inserting allocations: %v", err)
-		}
+	batchSize := 300
+	// without concurrency
+	// for i := 0; i < len(allocations); i += batchSize {
+	// 	end := i + batchSize
+	// 	if end > len(allocations) {
+	// 		end = len(allocations)
+	// 	}
+	// 	err := DB.CreateInBatches(allocations[i:end], batchSize).Error
+	// 	if err != nil {
+	// 		log.Fatalf("Error inserting allocations: %v", err)
+	// 	}
+	// }
+	// with concurrency
+	var wg sync.WaitGroup
+	for i := 0; i < len(allocations); i += batchSize {
+		wg.Add(1)
+		go func(start int) {
+			defer wg.Done()
+			end := start + batchSize
+			if end > len(allocations) {
+				end = len(allocations)
+			}
+			err := DB.CreateInBatches(allocations[start:end], batchSize).Error
+			if err != nil {
+				log.Fatalf("Error inserting allocations: %v", err)
+			}
+		}(i)
 	}
+	wg.Wait()
+
 	end = time.Now().In(loc)
 	elapsed = end.Sub(start)
 	fmt.Println("End:", end.Format("15:04:05"))
