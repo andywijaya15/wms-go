@@ -25,9 +25,10 @@ func handleCommand(command string) {
 func startServer() {
 	config.LoadEnv()
 	models.ConnectDatabase()
+	appPort := os.Getenv("APP_PORT")
 	router := routes.SetupRouter()
 
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(":" + appPort); err != nil {
 		log.Fatal("Error starting the server: ", err)
 	}
 }
