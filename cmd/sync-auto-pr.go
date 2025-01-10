@@ -51,7 +51,13 @@ type OrderDetail struct {
 }
 
 func SyncAutoPr() {
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		log.Fatal(err)
+	}
 	DB := models.DB
+	start := time.Now().In(loc)
+	fmt.Println("Start:", start.Format("15:04:05"))
 	response, err := http.Get("http://localhost:8001/v1/get-auto-pr")
 	if err != nil {
 		log.Fatalf("Error fetching data: %v", err)
@@ -71,6 +77,13 @@ func SyncAutoPr() {
 		log.Fatalf("Error unmarshaling JSON: %v", err)
 	}
 
+	end := time.Now().In(loc)
+	fmt.Println("End:", end.Format("15:04:05"))
+
+	elapsed := end.Sub(start)
+
+	fmt.Println("Elapsed Time of Fetch Data:", elapsed.Seconds(), "seconds")
+
 	var allocations = []models.Allocation{}
 
 	var factories []models.Factory
@@ -81,6 +94,8 @@ func SyncAutoPr() {
 		log.Fatalf("Error fetching factories: %v", err)
 	}
 
+	start = time.Now().In(loc)
+	fmt.Println("Start:", start.Format("15:04:05"))
 	for i, each := range outstandingAllocationPrs {
 		fmt.Printf("%d of %d -> %d\n", i+1, len(outstandingAllocationPrs), each.ID)
 		IsAllocationPurchase := false
@@ -205,7 +220,7 @@ func SyncAutoPr() {
 			OldJobOrder:               each.JobOrder,
 			OldLot:                    "-",
 			StatusPOBuyer:             "active",
-			UserID:                    0,
+			UserID:                    315,
 			UpdatedUserID:             0,
 			CreatedAt:                 time.Now(),
 			UpdatedAt:                 time.Now(),
@@ -231,4 +246,8 @@ func SyncAutoPr() {
 			log.Fatalf("Error inserting allocations: %v", err)
 		}
 	}
+	end = time.Now().In(loc)
+	elapsed = end.Sub(start)
+	fmt.Println("End:", end.Format("15:04:05"))
+	fmt.Println("Elapsed Time of Insert Data:", elapsed.Seconds(), "seconds")
 }
