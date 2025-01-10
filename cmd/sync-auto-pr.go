@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 	"wms-go/models"
+	"wms-go/utils"
 
 	"github.com/google/uuid"
 )
@@ -15,13 +17,13 @@ import (
 type OrderDetail struct {
 	TableName              string
 	ID                     int
-	COrderlineID           string
-	COrderID               string
-	CBPartnerID            string
-	ItemID                 string
-	FactoryID              string
-	SoID                   string
-	CategoryID             string
+	COrderlineID           int
+	COrderID               int
+	CBPartnerID            int
+	ItemID                 int
+	FactoryID              int
+	SoID                   int
+	CategoryID             int
 	PurchaseNumber         string
 	SupplierName           string
 	Category               string
@@ -30,27 +32,26 @@ type OrderDetail struct {
 	QtyAllocation          float64
 	POBuyer                string
 	LCDate                 time.Time
-	IsRecycle              bool
+	IsRecycle              string
 	StatusLC               string
 	StdPrecision           int
 	SoOrderType            string
 	Season                 string
 	WarehousePlace         string
-	SoDocTypeID            string
+	SoDocTypeID            int
 	PromiseDate            time.Time
 	JobOrder               string
-	PurchaseDocumentTypeID string
-	IsFabric               bool
+	PurchaseDocumentTypeID int
+	IsFabric               string
 	Color                  string
-	UOMID                  string
+	UOMID                  int
 	ItemDesc               string
 	LastUpdatePO           time.Time
 	IsMRPExists            bool
 }
 
-var DB = models.DB
-
 func SyncAutoPr() {
+	DB := models.DB
 	response, err := http.Get("http://localhost:8001/v1/get-auto-pr")
 	if err != nil {
 		log.Fatalf("Error fetching data: %v", err)
@@ -80,7 +81,8 @@ func SyncAutoPr() {
 		log.Fatalf("Error fetching factories: %v", err)
 	}
 
-	for _, each := range outstandingAllocationPrs {
+	for i, each := range outstandingAllocationPrs {
+		fmt.Printf("%d of %d -> %d\n", i+1, len(outstandingAllocationPrs), each.ID)
 		IsAllocationPurchase := false
 		if each.StatusLC == "PR" {
 			IsAllocationPurchase = true
@@ -96,30 +98,40 @@ func SyncAutoPr() {
 
 		warehouseSequence := "003"
 		switch each.FactoryID {
-		case "1000002":
+		case 1000002:
 			warehouseSequence = "001"
-		case "1000013":
+		case 1000013:
 			warehouseSequence = "002"
-		case "1000082":
+		case 1000082:
 			warehouseSequence = "004"
 		}
 
 		isAllocationNagai := false
-		if each.PurchaseDocumentTypeID == "1000239" {
+		if each.PurchaseDocumentTypeID == 1000239 {
 			isAllocationNagai = true
 		}
 
 		var batchNumberStock *string
-		if each.IsFabric {
+		if each.IsFabric == "Y" {
 			batchNumberStockValue := "auto"
 			batchNumberStock = &batchNumberStockValue
 		} else {
 			batchNumberStock = nil
 		}
 
+		isFabricBool := true
+		if each.IsFabric == "N" {
+			isFabricBool = false
+		}
+
+		isRecycleBool := true
+		if each.IsRecycle == "N" {
+			isRecycleBool = false
+		}
+
 		var buyer models.Buyer
 
-		err = DB.Where("purchase_document_type_id = ? AND erp_client_org_id = ?", each.PurchaseDocumentTypeID, "bima").First(&buyer).Error
+		err = DB.Where("purchase_document_type_id = ? AND erp_client_org_id = ?", strconv.Itoa(each.PurchaseDocumentTypeID), "bima").First(&buyer).Error
 
 		if err != nil {
 			log.Fatalf("Error get buyer: %v", err)
@@ -129,13 +141,8 @@ func SyncAutoPr() {
 
 		var factoryName string
 
-		parseIntFactory, err := strconv.Atoi(each.FactoryID)
-		if err != nil {
-			log.Fatalf("Error converting FactoryID to int: %v", err)
-		}
-
 		for _, factory := range factories {
-			if factory.ID == parseIntFactory {
+			if factory.ID == each.FactoryID {
 				factoryName = factory.FactoryName
 				break
 			}
@@ -145,13 +152,15 @@ func SyncAutoPr() {
 			log.Fatalf("Error get factory: %v", err)
 		}
 
+		stringFactoryID := strconv.Itoa(each.FactoryID)
+
 		allocation := models.Allocation{
 			ID:                        uuid.New().String(),
 			IsNewBima:                 true,
 			ERPOrg:                    "bima",
-			ERPCOrderLineID:           each.COrderlineID,
-			SODocumentTypeID:          each.SoDocTypeID,
-			SOID:                      each.SoID,
+			ERPCOrderLineID:           strconv.Itoa(each.COrderlineID),
+			SODocumentTypeID:          strconv.Itoa(each.SoDocTypeID),
+			SOID:                      strconv.Itoa(each.SoID),
 			ERPSoTypeStock:            each.SoOrderType,
 			ERPSoTypeStockCode:        each.SoOrderType,
 			ERPWarehousePlace:         each.WarehousePlace,
@@ -159,13 +168,13 @@ func SyncAutoPr() {
 			State:                     "reguler",
 			ERPWMSTMaterialStockID:    nil,
 			AllocationNumber:          "ERP-" + each.StatusLC + "LC-" + dayLc + "-" + monthLc + "-" + warehouseSequence,
-			CategoryIDSource:          each.CategoryID,
-			CategoryIDBook:            each.CategoryID,
-			COrderID:                  each.COrderID,
-			CBPartnerID:               each.CBPartnerID,
-			ItemIDSource:              each.ItemID,
-			ItemIDBook:                each.ItemID,
-			FactoryID:                 each.FactoryID,
+			CategoryIDSource:          strconv.Itoa(each.CategoryID),
+			CategoryIDBook:            strconv.Itoa(each.CategoryID),
+			COrderID:                  strconv.Itoa(each.COrderID),
+			CBPartnerID:               strconv.Itoa(each.CBPartnerID),
+			ItemIDSource:              strconv.Itoa(each.ItemID),
+			ItemIDBook:                strconv.Itoa(each.ItemID),
+			FactoryID:                 stringFactoryID,
 			StdPrecision:              float64(each.StdPrecision),
 			OrderDate:                 each.LCDate,
 			PromiseDate:               each.PromiseDate,
@@ -175,23 +184,23 @@ func SyncAutoPr() {
 			JobOrder:                  each.JobOrder,
 			Lot:                       "-",
 			ItemCodeBook:              each.ItemCode,
-			ItemDescBook:              each.ItemDesc[:185],
+			ItemDescBook:              utils.SafeSlice(each.ItemDesc, 185),
 			CategoryBook:              each.Category,
 			ItemCodeSource:            each.ItemCode,
-			ItemDescSource:            each.ItemDesc[:185],
+			ItemDescSource:            utils.SafeSlice(each.ItemDesc, 185),
 			CategorySource:            each.Category,
 			FactoryName:               factoryName,
 			UOM:                       each.UOM,
 			QtyAllocation:             each.QtyAllocation,
 			QtyOutstanding:            each.QtyAllocation,
 			QtyAllocated:              0,
-			IsFabric:                  each.IsFabric,
+			IsFabric:                  isFabricBool,
 			IsAdditional:              false,
 			IsAllocationStockTransfer: false,
 			NoteAdditional:            nil,
 			IsAllocationPurchase:      IsAllocationPurchase,
 			GenerateFormBooking:       nil,
-			OldSOID:                   each.SoID,
+			OldSOID:                   strconv.Itoa(each.SoID),
 			OldPOBuyer:                each.POBuyer,
 			OldJobOrder:               each.JobOrder,
 			OldLot:                    "-",
@@ -203,14 +212,14 @@ func SyncAutoPr() {
 			ConfirmDate:               time.Now(),
 			BatchNumberStock:          batchNumberStock,
 			IsAllocationNagai:         isAllocationNagai,
-			PurchaseDocumentTypeID:    each.PurchaseDocumentTypeID,
+			PurchaseDocumentTypeID:    strconv.Itoa(each.PurchaseDocumentTypeID),
 			BuyerName:                 buyerName,
-			ItemColorBook:             each.Color[:185],
-			ItemColorSource:           each.Color[:185],
+			ItemColorBook:             utils.SafeSlice(each.Color, 185),
+			ItemColorSource:           utils.SafeSlice(each.Color, 185),
 			ERPAllocationID:           each.TableName + "_" + strconv.Itoa(each.ID),
-			UOMIDSource:               each.UOMID,
-			UOMIDBook:                 each.UOMID,
-			IsRecycleSource:           each.IsRecycle,
+			UOMIDSource:               strconv.Itoa(each.UOMID),
+			UOMIDBook:                 strconv.Itoa(each.UOMID),
+			IsRecycleSource:           isRecycleBool,
 			POBuyerReference:          nil,
 			ERPBrand:                  "-",
 		}

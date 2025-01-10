@@ -13,6 +13,8 @@ const (
 	SyncAutoPrCommand = "sync-auto-pr"
 )
 
+var DB = models.DB
+
 func handleCommand(command string) {
 	switch command {
 	case SyncAutoPrCommand:
@@ -23,8 +25,6 @@ func handleCommand(command string) {
 }
 
 func startServer() {
-	config.LoadEnv()
-	models.ConnectDatabase()
 	appPort := os.Getenv("APP_PORT")
 	router := routes.SetupRouter()
 
@@ -34,6 +34,8 @@ func startServer() {
 }
 
 func main() {
+	config.LoadEnv()
+	models.ConnectDatabase()
 	isCommand := len(os.Args) > 1 && os.Args[1] != ""
 	if isCommand {
 		handleCommand(os.Args[1])
