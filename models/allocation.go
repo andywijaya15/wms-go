@@ -67,7 +67,7 @@ type Allocation struct {
 	QtyAllocatedAdjustment         float64    `gorm:"column:qty_allocated_adjustment" json:"qty_allocated_adjustment"`
 	ItemColorSource                string     `gorm:"column:item_color_source" json:"item_color_source"`
 	ItemColorBook                  string     `gorm:"column:item_color_book" json:"item_color_book"`
-	BuyerName                      *string    `gorm:"column:buyer_name" json:"buyer_name"`
+	BuyerName                      string     `gorm:"column:buyer_name" json:"buyer_name"`
 	PurchaseDocumentTypeID         string     `gorm:"column:purchase_document_type_id" json:"purchase_document_type_id"`
 	UOMIDSource                    string     `gorm:"column:uom_id_source" json:"uom_id_source"`
 	UOMIDBook                      string     `gorm:"column:uom_id_book" json:"uom_id_book"`
